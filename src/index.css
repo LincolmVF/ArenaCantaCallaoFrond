@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@layer base {
+  button, a, input, select {
+    touch-action: manipulation;
+  }
+}
+
+/* Estilos optimizados para impresión de reportes de ventas */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-container {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+}
