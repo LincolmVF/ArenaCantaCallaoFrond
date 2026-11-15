@@ -177,6 +177,60 @@ export default function AdminPage() {
   const [recentNotifications, setRecentNotifications] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
+  // Sonido de notificación (Web Audio API - chime de 2 tonos sin archivos externos)
+  const audioCtxRef = useRef(null);
+
+  useEffect(() => {
+    const unlockAudio = () => {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx && !audioCtxRef.current) {
+          audioCtxRef.current = new AudioCtx();
+        }
+        if (audioCtxRef.current?.state === 'suspended') {
+          audioCtxRef.current.resume();
+        }
+      } catch {
+        // Ignorar si el navegador bloquea audio
+      }
+    };
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    return () => window.removeEventListener('pointerdown', unlockAudio);
+  }, []);
+
+  const playOrderChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioCtx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const now = ctx.currentTime;
+      const notes = [
+        { freq: 880, start: 0, dur: 0.14 },
+        { freq: 1174.66, start: 0.13, dur: 0.28 },
+      ];
+      notes.forEach(({ freq, start, dur }) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + start);
+        gain.gain.setValueAtTime(0.001, now + start);
+        gain.gain.exponentialRampToValueAtTime(0.22, now + start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + start);
+        osc.stop(now + start + dur + 0.02);
+      });
+    } catch {
+      // Silencioso si no hay soporte de audio
+    }
+  };
+
   // Polling cada 6s para mantener actualizada la campanita y detectar nuevas compras
   useEffect(() => {
     if (!user || user.role !== 'ADMIN') return undefined;
@@ -213,6 +267,7 @@ export default function AdminPage() {
           setNewOrderAlert(newest);
           setUnseenOrdersCount((c) => c + newCount);
           setOrdersList((prev) => (prev.length ? orders : prev));
+          playOrderChime();
         }
       } catch {
         // Silencioso en polling de fondo
@@ -663,9 +718,8 @@ export default function AdminPage() {
                         <button
                           key={ord.id}
                           onClick={() => goToMovementsFromNotif(ord.orderNumber)}
-                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition flex items-start justify-between gap-3 ${
-                            isUnread ? 'bg-emerald-50/60' : ''
-                          }`}
+                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition flex items-start justify-between gap-3 ${isUnread ? 'bg-emerald-50/60' : ''
+                            }`}
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
@@ -1469,6 +1523,21 @@ export default function AdminPage() {
                   className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold"
                 >
                   Buscar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrderSearch('');
+                    setOrderStatusFilter('ALL');
+                    setMovFilters({});
+                    setMovSort({ key: 'createdAt', dir: 'desc' });
+                    loadOrders('ALL', '');
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold transition"
+                  title="Limpiar todos los filtros y restablecer orden"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Limpiar Filtros
                 </button>
               </div>
             </div>

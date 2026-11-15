@@ -431,7 +431,7 @@ export default function KioskPage() {
               className="flex items-center gap-2 px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-base active:scale-95 transition"
             >
               <ArrowLeft className="w-5 h-5" />
-              Categorías
+              Más Categorías
             </button>
             <div className="text-center">
               <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
@@ -558,7 +558,7 @@ export default function KioskPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={() => setCart([])}
                 className="p-4 rounded-2xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white active:scale-95 transition"
@@ -566,11 +566,20 @@ export default function KioskPage() {
               >
                 <Trash2 className="w-6 h-6" />
               </button>
+              {step === 'PRODUCTS' && (
+                <button
+                  onClick={() => setStep('CATEGORIES')}
+                  className="px-6 py-4 rounded-2xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-base sm:text-lg flex items-center gap-2 active:scale-95 transition"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Seguir Comprando
+                </button>
+              )}
               <button
                 onClick={handleGoToReview}
-                className="px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-lg flex items-center gap-2 shadow-lg active:scale-95 transition"
+                className="px-7 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-base sm:text-lg flex items-center gap-2 shadow-lg active:scale-95 transition"
               >
-                Siguiente: Revisar Pedido
+                Ya Terminé • Ir a Pagar
                 <ArrowRight className="w-6 h-6" />
               </button>
             </div>
