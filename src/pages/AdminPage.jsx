@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Package,
@@ -23,6 +23,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Bell,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -170,6 +171,46 @@ export default function AdminPage() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('ALL');
   const [editingOrder, setEditingOrder] = useState(null);
+
+  // Polling ligero cada 8s para detectar nuevas compras en tiempo real
+  useEffect(() => {
+    if (!user || user.role !== 'ADMIN') return undefined;
+
+    let cancelled = false;
+    const checkNewOrders = async () => {
+      try {
+        const data = await api.getAdminOrders({ status: 'ALL' });
+        const orders = data.orders || [];
+        if (cancelled || orders.length === 0) return;
+
+        const newest = orders[0];
+        if (lastSeenOrderIdRef.current === null) {
+          lastSeenOrderIdRef.current = newest.id;
+          return;
+        }
+
+        if (newest.id > lastSeenOrderIdRef.current) {
+          const newCount = orders.filter((o) => o.id > lastSeenOrderIdRef.current).length;
+          lastSeenOrderIdRef.current = newest.id;
+          setNewOrderAlert(newest);
+          setUnseenOrdersCount((c) => c + newCount);
+          setOrdersList(orders);
+        }
+      } catch {
+        // Silencioso en polling de fondo
+      }
+    };
+
+    checkNewOrders();
+    const timer = setInterval(checkNewOrders, 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [user]);
+  const lastSeenOrderIdRef = useRef(null);
+  const [newOrderAlert, setNewOrderAlert] = useState(null);
+  const [unseenOrdersCount, setUnseenOrdersCount] = useState(0);
 
   // Estados de ordenamiento y filtros por columna para todas las tablas
   const toggleSort = (setter) => (key) =>
@@ -594,7 +635,10 @@ export default function AdminPage() {
             Dashboard & Reportes
           </button>
           <button
-            onClick={() => setActiveTab('movements')}
+            onClick={() => {
+              setActiveTab('movements');
+              setUnseenOrdersCount(0);
+            }}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${
               activeTab === 'movements'
                 ? 'bg-slate-900 text-white'
@@ -603,6 +647,11 @@ export default function AdminPage() {
           >
             <ClipboardList className="w-4 h-4" />
             Asientos / Movimientos
+            {unseenOrdersCount > 0 && (
+              <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-xs font-black animate-pulse">
+                +{unseenOrdersCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -1452,6 +1501,65 @@ export default function AdminPage() {
           </section>
         )}
       </div>
+
+      {/* NOTIFICACIÓN FLOTANTE DE NUEVA COMPRA */}
+      {newOrderAlert && (
+        <div className="no-print fixed top-20 right-5 z-50 max-w-sm w-[92%] bg-slate-900 text-white rounded-2xl shadow-2xl border-2 border-emerald-500 p-5 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                <Bell className="w-5 h-5 text-white animate-bounce" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                  Nueva Compra Recibida
+                </p>
+                <p className="font-black text-base">{newOrderAlert.orderNumber}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setNewOrderAlert(null)}
+              className="text-slate-400 hover:text-white p-1"
+              title="Cerrar notificación"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="bg-slate-800/80 rounded-xl p-3 text-xs space-y-1">
+            <p className="text-slate-300">
+              {newOrderAlert.itemsCount}{' '}
+              {newOrderAlert.itemsCount === 1 ? 'producto' : 'productos'} • Total:{' '}
+              <strong className="text-emerald-400 text-sm">
+                S/ {Number(newOrderAlert.totalAmount).toFixed(2)}
+              </strong>
+            </p>
+            <p className="text-slate-400 truncate">
+              {newOrderAlert.items?.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setActiveTab('movements');
+                setUnseenOrdersCount(0);
+                setNewOrderAlert(null);
+                loadOrders(orderStatusFilter, orderSearch);
+              }}
+              className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition"
+            >
+              Verificar en Asientos
+            </button>
+            <button
+              onClick={() => setNewOrderAlert(null)}
+              className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs"
+            >
+              Ocultar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL CREAR / EDITAR PRODUCTO */}
       {showModal && (

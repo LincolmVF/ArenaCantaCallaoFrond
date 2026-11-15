@@ -201,6 +201,16 @@ export default function KioskPage() {
     });
   };
 
+  const removeFromCart = (productId) => {
+    setCart((prev) => {
+      const next = prev.filter((i) => i.id !== productId);
+      if (next.length === 0 && step === 'REVIEW') {
+        setStep('CATEGORIES');
+      }
+      return next;
+    });
+  };
+
   const handleGoToReview = async () => {
     await loadCatalog();
     setStep('REVIEW');
@@ -423,9 +433,14 @@ export default function KioskPage() {
               <ArrowLeft className="w-5 h-5" />
               Categorías
             </button>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-              {selectedCategory === 'Todos' ? 'Todo el Catálogo' : selectedCategory}
-            </h2>
+            <div className="text-center">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                {selectedCategory === 'Todos' ? 'Todo el Catálogo' : selectedCategory}
+              </h2>
+              <p className="text-xs sm:text-sm text-emerald-700 font-semibold">
+                Toca &quot;+ Agregar al Carrito&quot; en los productos que desees llevar
+              </p>
+            </div>
             <span className="text-sm font-semibold text-slate-500">
               {categoryProducts.length} disponibles
             </span>
@@ -484,29 +499,38 @@ export default function KioskPage() {
                       </div>
                     </div>
 
-                    {/* Botonera Táctil Grande */}
+                    {/* Botonera Táctil Grande y Clara */}
                     {outOfStock ? (
                       <div className="w-full py-4 rounded-2xl bg-red-100 text-red-800 font-bold text-center text-base">
                         Producto Agotado
                       </div>
+                    ) : qty === 0 ? (
+                      <button
+                        onClick={() => handleChangeQty(product, 1)}
+                        className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-lg flex items-center justify-center gap-2 shadow-sm active:scale-95 transition"
+                      >
+                        <Plus className="w-6 h-6" />
+                        Agregar al Carrito
+                      </button>
                     ) : (
-                      <div className="flex items-center justify-between gap-2 bg-slate-100 p-2 rounded-2xl">
+                      <div className="flex items-center justify-between gap-2 bg-emerald-50 border border-emerald-200 p-2 rounded-2xl">
                         <button
                           onClick={() => handleChangeQty(product, -1)}
-                          disabled={qty === 0}
-                          className="w-16 h-14 rounded-xl bg-white disabled:opacity-40 text-slate-900 font-black flex items-center justify-center shadow-sm active:scale-90 transition"
+                          className="w-16 h-14 rounded-xl bg-white text-slate-900 font-black flex items-center justify-center shadow-sm active:scale-90 transition"
+                          title="Quitar 1"
                         >
                           <Minus className="w-6 h-6" />
                         </button>
                         <div className="text-center">
-                          <span className="text-2xl font-black text-slate-900">{qty}</span>
-                          <p className="text-[11px] font-bold uppercase text-slate-500">
+                          <span className="text-2xl font-black text-emerald-900">{qty}</span>
+                          <p className="text-[11px] font-bold uppercase text-emerald-700">
                             en carrito
                           </p>
                         </div>
                         <button
                           onClick={() => handleChangeQty(product, 1)}
                           className="w-16 h-14 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black flex items-center justify-center shadow-sm active:scale-90 transition"
+                          title="Agregar 1 más"
                         >
                           <Plus className="w-6 h-6" />
                         </button>
@@ -633,6 +657,13 @@ export default function KioskPage() {
                       <span className="text-lg font-black text-slate-900 w-24 text-right">
                         S/ {(item.effectivePrice * item.quantity).toFixed(2)}
                       </span>
+                      <button
+                        onClick={() => removeFromCart(item.id)}
+                        className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 active:scale-90 transition"
+                        title="Descartar producto"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </li>
                 );
@@ -644,10 +675,17 @@ export default function KioskPage() {
               <span className="text-3xl font-black">S/ {cartTotal.toFixed(2)}</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                onClick={resetKiosk}
+                className="py-5 rounded-2xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-base flex items-center justify-center gap-2 active:scale-95 transition"
+              >
+                <Trash2 className="w-5 h-5" />
+                Cancelar Compra
+              </button>
               <button
                 onClick={() => setStep('CATEGORIES')}
-                className="py-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-lg flex items-center justify-center gap-2 active:scale-95 transition"
+                className="py-5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-base flex items-center justify-center gap-2 active:scale-95 transition"
               >
                 <ArrowLeft className="w-5 h-5" />
                 Agregar Más
@@ -658,7 +696,7 @@ export default function KioskPage() {
                 className="py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black text-lg flex items-center justify-center gap-2 shadow-lg active:scale-95 transition"
               >
                 <QrCode className="w-6 h-6" />
-                Generar QR de Pago
+                Generar QR
               </button>
             </div>
           </div>
