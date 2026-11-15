@@ -66,14 +66,12 @@ function SortableHeader({ label, sortKey, sortState, onSort, align = 'left' }) {
   return (
     <th
       onClick={() => onSort(sortKey)}
-      className={`p-3 cursor-pointer select-none hover:bg-slate-100 transition ${
-        align === 'right' ? 'text-right' : 'text-left'
-      }`}
+      className={`p-3 cursor-pointer select-none hover:bg-slate-100 transition ${align === 'right' ? 'text-right' : 'text-left'
+        }`}
     >
       <div
-        className={`inline-flex items-center gap-1.5 ${
-          align === 'right' ? 'justify-end' : 'justify-start'
-        }`}
+        className={`inline-flex items-center gap-1.5 ${align === 'right' ? 'justify-end' : 'justify-start'
+          }`}
       >
         <span>{label}</span>
         {isActive ? (
@@ -172,20 +170,40 @@ export default function AdminPage() {
   const [orderStatusFilter, setOrderStatusFilter] = useState('ALL');
   const [editingOrder, setEditingOrder] = useState(null);
 
-  // Polling ligero cada 8s para detectar nuevas compras en tiempo real
+  // Notificación en vivo + Campanita con histórico en Navbar Admin
+  const lastSeenOrderIdRef = useRef(null);
+  const [newOrderAlert, setNewOrderAlert] = useState(null);
+  const [unseenOrdersCount, setUnseenOrdersCount] = useState(0);
+  const [recentNotifications, setRecentNotifications] = useState([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+
+  // Polling cada 6s para mantener actualizada la campanita y detectar nuevas compras
   useEffect(() => {
     if (!user || user.role !== 'ADMIN') return undefined;
 
     let cancelled = false;
     const checkNewOrders = async () => {
       try {
-        const data = await api.getAdminOrders({ status: 'ALL' });
+        const data = await api.getAdminOrders({ status: 'COMPLETED' });
         const orders = data.orders || [];
-        if (cancelled || orders.length === 0) return;
+        if (cancelled) return;
 
+        setRecentNotifications(orders.slice(0, 8));
+
+        if (orders.length === 0) return;
         const newest = orders[0];
+        const storedSeenId = Number(localStorage.getItem('acc_admin_last_seen_order_id') || 0);
+
         if (lastSeenOrderIdRef.current === null) {
-          lastSeenOrderIdRef.current = newest.id;
+          if (!storedSeenId) {
+            localStorage.setItem('acc_admin_last_seen_order_id', String(newest.id));
+            lastSeenOrderIdRef.current = newest.id;
+            setUnseenOrdersCount(0);
+          } else {
+            lastSeenOrderIdRef.current = newest.id;
+            const unread = orders.filter((o) => o.id > storedSeenId).length;
+            setUnseenOrdersCount(unread);
+          }
           return;
         }
 
@@ -194,7 +212,7 @@ export default function AdminPage() {
           lastSeenOrderIdRef.current = newest.id;
           setNewOrderAlert(newest);
           setUnseenOrdersCount((c) => c + newCount);
-          setOrdersList(orders);
+          setOrdersList((prev) => (prev.length ? orders : prev));
         }
       } catch {
         // Silencioso en polling de fondo
@@ -202,15 +220,30 @@ export default function AdminPage() {
     };
 
     checkNewOrders();
-    const timer = setInterval(checkNewOrders, 8000);
+    const timer = setInterval(checkNewOrders, 6000);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
   }, [user]);
-  const lastSeenOrderIdRef = useRef(null);
-  const [newOrderAlert, setNewOrderAlert] = useState(null);
-  const [unseenOrdersCount, setUnseenOrdersCount] = useState(0);
+
+  const markNotificationsAsRead = () => {
+    if (recentNotifications.length > 0) {
+      localStorage.setItem('acc_admin_last_seen_order_id', String(recentNotifications[0].id));
+    }
+    setUnseenOrdersCount(0);
+  };
+
+  const goToMovementsFromNotif = (orderNumber = '') => {
+    markNotificationsAsRead();
+    setShowNotifDropdown(false);
+    setNewOrderAlert(null);
+    if (orderNumber) {
+      setMovFilters((prev) => ({ ...prev, orderNumber }));
+    }
+    setActiveTab('movements');
+    loadOrders(orderStatusFilter, orderSearch);
+  };
 
   // Estados de ordenamiento y filtros por columna para todas las tablas
   const toggleSort = (setter) => (key) =>
@@ -577,7 +610,100 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
+          {/* Campanita de Notificaciones de Compras */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifDropdown((prev) => !prev)}
+              className="relative flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl text-sm font-bold transition"
+              title="Notificaciones de compras finalizadas"
+            >
+              <Bell className="w-4 h-4 text-emerald-400" />
+              <span className="hidden sm:inline">Compras</span>
+              {unseenOrdersCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[11px] font-black leading-none animate-pulse">
+                  {unseenOrdersCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifDropdown && (
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-extrabold text-slate-900">
+                      Últimas Compras Finalizadas
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Toca una compra para ir a Asientos / Movimientos
+                    </p>
+                  </div>
+                  {unseenOrdersCount > 0 && (
+                    <button
+                      onClick={markNotificationsAsRead}
+                      className="text-[11px] font-bold text-emerald-700 hover:underline"
+                    >
+                      Marcar leídas
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                  {recentNotifications.length === 0 ? (
+                    <p className="p-6 text-center text-xs text-slate-400">
+                      No hay compras registradas aún.
+                    </p>
+                  ) : (
+                    recentNotifications.map((ord) => {
+                      const storedSeen = Number(
+                        localStorage.getItem('acc_admin_last_seen_order_id') || 0
+                      );
+                      const isUnread = ord.id > storedSeen;
+                      return (
+                        <button
+                          key={ord.id}
+                          onClick={() => goToMovementsFromNotif(ord.orderNumber)}
+                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition flex items-start justify-between gap-3 ${
+                            isUnread ? 'bg-emerald-50/60' : ''
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              {isUnread && (
+                                <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
+                              )}
+                              <span className="font-mono text-xs font-bold text-slate-900">
+                                {ord.orderNumber}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 truncate mt-0.5">
+                              {ord.items?.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {new Date(ord.createdAt).toLocaleString('es-PE')}
+                            </p>
+                          </div>
+                          <span className="font-black text-sm text-emerald-700 shrink-0">
+                            S/ {Number(ord.totalAmount).toFixed(2)}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="p-2.5 bg-slate-50 border-t border-slate-200">
+                  <button
+                    onClick={() => goToMovementsFromNotif('')}
+                    className="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition"
+                  >
+                    Ver todos en Asientos / Movimientos
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <Link
             to="/"
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl text-sm font-bold transition"
@@ -603,33 +729,30 @@ export default function AdminPage() {
         <div className="no-print flex flex-wrap gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm w-fit">
           <button
             onClick={() => setActiveTab('inventory')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${
-              activeTab === 'inventory'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'inventory'
+              ? 'bg-slate-900 text-white'
+              : 'text-slate-600 hover:bg-slate-100'
+              }`}
           >
             <Package className="w-4 h-4" />
             Inventario & Excel
           </button>
           <button
             onClick={() => setActiveTab('pricing')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${
-              activeTab === 'pricing'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'pricing'
+              ? 'bg-slate-900 text-white'
+              : 'text-slate-600 hover:bg-slate-100'
+              }`}
           >
             <TrendingUp className="w-4 h-4" />
             Precios Dinámicos
           </button>
           <button
             onClick={() => setActiveTab('reports')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${
-              activeTab === 'reports'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'reports'
+              ? 'bg-slate-900 text-white'
+              : 'text-slate-600 hover:bg-slate-100'
+              }`}
           >
             <BarChart3 className="w-4 h-4" />
             Dashboard & Reportes
@@ -639,11 +762,10 @@ export default function AdminPage() {
               setActiveTab('movements');
               setUnseenOrdersCount(0);
             }}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${
-              activeTab === 'movements'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'movements'
+              ? 'bg-slate-900 text-white'
+              : 'text-slate-600 hover:bg-slate-100'
+              }`}
           >
             <ClipboardList className="w-4 h-4" />
             Asientos / Movimientos
@@ -658,11 +780,10 @@ export default function AdminPage() {
         {/* Notificaciones */}
         {feedback.text && (
           <div
-            className={`no-print px-4 py-3 rounded-xl font-semibold text-sm border ${
-              feedback.type === 'error'
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-            }`}
+            className={`no-print px-4 py-3 rounded-xl font-semibold text-sm border ${feedback.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-700'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              }`}
           >
             {feedback.text}
           </div>
@@ -791,11 +912,10 @@ export default function AdminPage() {
                         </td>
                         <td className="p-4">
                           <span
-                            className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              p.stock <= 5
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
+                            className={`px-2.5 py-1 rounded-full text-xs font-bold ${p.stock <= 5
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-slate-100 text-slate-700'
+                              }`}
                           >
                             {p.stock} {p.unit}
                           </span>
@@ -842,9 +962,8 @@ export default function AdminPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Zap
-                      className={`w-5 h-5 ${
-                        pricingConfig.globalMarkupActive ? 'text-amber-500' : 'text-slate-400'
-                      }`}
+                      className={`w-5 h-5 ${pricingConfig.globalMarkupActive ? 'text-amber-500' : 'text-slate-400'
+                        }`}
                     />
                     <h2 className="text-lg font-bold text-slate-900">
                       1. Regla Global (Todo el Catálogo)
@@ -878,11 +997,10 @@ export default function AdminPage() {
 
                   <button
                     onClick={handleToggleGlobalPricing}
-                    className={`px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-sm ${
-                      pricingConfig.globalMarkupActive
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    }`}
+                    className={`px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-sm ${pricingConfig.globalMarkupActive
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      }`}
                   >
                     {pricingConfig.globalMarkupActive
                       ? `DESACTIVAR Global (+${pricingConfig.globalMarkupPct}%)`
@@ -1056,11 +1174,10 @@ export default function AdminPage() {
                     <button
                       key={opt.id}
                       onClick={() => setReportFilter((prev) => ({ ...prev, mode: opt.id }))}
-                      className={`px-4 py-2 rounded-xl font-bold text-sm transition ${
-                        reportFilter.mode === opt.id
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
+                      className={`px-4 py-2 rounded-xl font-bold text-sm transition ${reportFilter.mode === opt.id
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
                     >
                       {opt.label}
                     </button>
@@ -1455,11 +1572,10 @@ export default function AdminPage() {
                           </td>
                           <td className="p-4">
                             <span
-                              className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                isCancelled
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-emerald-100 text-emerald-700'
-                              }`}
+                              className={`px-2.5 py-1 rounded-full text-xs font-bold ${isCancelled
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                                }`}
                             >
                               {isCancelled ? 'REVERTIDA' : 'COMPLETADA'}
                             </span>
@@ -1541,12 +1657,7 @@ export default function AdminPage() {
 
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                setActiveTab('movements');
-                setUnseenOrdersCount(0);
-                setNewOrderAlert(null);
-                loadOrders(orderStatusFilter, orderSearch);
-              }}
+              onClick={() => goToMovementsFromNotif(newOrderAlert.orderNumber)}
               className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition"
             >
               Verificar en Asientos
@@ -1906,13 +2017,12 @@ function PricingRow({ product, onSave }) {
       </td>
       <td className="p-4">
         <span
-          className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-            product.activeRule === 'INDIVIDUAL'
-              ? 'bg-purple-100 text-purple-800'
-              : product.activeRule === 'GLOBAL'
+          className={`px-2.5 py-1 rounded-full text-xs font-bold ${product.activeRule === 'INDIVIDUAL'
+            ? 'bg-purple-100 text-purple-800'
+            : product.activeRule === 'GLOBAL'
               ? 'bg-amber-100 text-amber-800'
               : 'bg-slate-100 text-slate-600'
-          }`}
+            }`}
         >
           {product.activeRule} (
           {product.appliedPct >= 0 ? `+${product.appliedPct}%` : `${product.appliedPct}%`})
