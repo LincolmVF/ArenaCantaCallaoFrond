@@ -778,58 +778,110 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 print-container">
-        {/* Pestañas */}
-        <div className="no-print flex flex-wrap gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm w-fit">
+      <div className="max-w-[1600px] mx-auto p-4 sm:p-6 flex flex-col lg:flex-row gap-6 items-start">
+        {/* Sidebar Vertical Izquierdo */}
+        <aside className="no-print w-full lg:w-72 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm p-3 lg:sticky lg:top-6 space-y-1.5">
+          <p className="px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+            Módulos del Sistema
+          </p>
+
           <button
             onClick={() => setActiveTab('inventory')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'inventory'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
-              }`}
+            className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl transition ${
+              activeTab === 'inventory'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
           >
-            <Package className="w-4 h-4" />
-            Inventario & Excel
+            <Package className="w-5 h-5 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm leading-tight">Inventario & Excel</p>
+              <p
+                className={`text-[11px] mt-0.5 ${
+                  activeTab === 'inventory' ? 'text-slate-300' : 'text-slate-500'
+                }`}
+              >
+                Stock, productos y carga masiva
+              </p>
+            </div>
           </button>
+
           <button
             onClick={() => setActiveTab('pricing')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'pricing'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
-              }`}
+            className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl transition ${
+              activeTab === 'pricing'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
           >
-            <TrendingUp className="w-4 h-4" />
-            Precios Dinámicos
+            <TrendingUp className="w-5 h-5 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm leading-tight">Precios Dinámicos</p>
+              <p
+                className={`text-[11px] mt-0.5 ${
+                  activeTab === 'pricing' ? 'text-slate-300' : 'text-slate-500'
+                }`}
+              >
+                Reglas globales y por categoría
+              </p>
+            </div>
           </button>
+
           <button
             onClick={() => setActiveTab('reports')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'reports'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
-              }`}
+            className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl transition ${
+              activeTab === 'reports'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
           >
-            <BarChart3 className="w-4 h-4" />
-            Dashboard & Reportes
+            <BarChart3 className="w-5 h-5 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-bold text-sm leading-tight">Dashboard & Reportes</p>
+              <p
+                className={`text-[11px] mt-0.5 ${
+                  activeTab === 'reports' ? 'text-slate-300' : 'text-slate-500'
+                }`}
+              >
+                Ventas, Excel e impresión
+              </p>
+            </div>
           </button>
+
           <button
             onClick={() => {
               setActiveTab('movements');
               setUnseenOrdersCount(0);
             }}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition ${activeTab === 'movements'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
-              }`}
+            className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-xl transition ${
+              activeTab === 'movements'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
           >
-            <ClipboardList className="w-4 h-4" />
-            Asientos / Movimientos
-            {unseenOrdersCount > 0 && (
-              <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-xs font-black animate-pulse">
-                +{unseenOrdersCount}
-              </span>
-            )}
+            <ClipboardList className="w-5 h-5 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-bold text-sm leading-tight">Asientos / Movimientos</p>
+                {unseenOrdersCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black animate-pulse">
+                    +{unseenOrdersCount}
+                  </span>
+                )}
+              </div>
+              <p
+                className={`text-[11px] mt-0.5 ${
+                  activeTab === 'movements' ? 'text-slate-300' : 'text-slate-500'
+                }`}
+              >
+                Auditar, editar o revertir ventas
+              </p>
+            </div>
           </button>
-        </div>
+        </aside>
+
+        {/* Contenido Principal */}
+        <main className="flex-1 min-w-0 w-full space-y-6 print-container">
 
         {/* Notificaciones */}
         {feedback.text && (
@@ -1685,6 +1737,7 @@ export default function AdminPage() {
             </div>
           </section>
         )}
+        </main>
       </div>
 
       {/* NOTIFICACIÓN FLOTANTE DE NUEVA COMPRA */}
